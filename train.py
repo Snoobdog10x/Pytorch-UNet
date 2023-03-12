@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as TF
+from utils.utils import plot_evaluate
 from pathlib import Path
 from torch import optim
 from torch.utils.data import DataLoader, random_split
@@ -37,6 +38,7 @@ def train_model(
         weight_decay: float = 1e-8,
         momentum: float = 0.999,
         gradient_clipping: float = 1.0,
+        save_valid_plot: bool = False
 ):
     # 1. Create dataset
     try:
@@ -142,14 +144,20 @@ def train_model(
                         scheduler.step(val_score)
 
                         logging.info('Validation Dice score: {}'.format(val_score))
+                        np_image = images[0].cpu()
+                        np_mask_pred = masks_pred.argmax(dim=1)[0].float().cpu()
+                        np_mask_true = true_masks[0].float().cpu()
+                        if save_valid_plot:
+                            plot_evaluate(np_image, np_mask_pred, np_mask_true)
+
                         try:
                             experiment.log({
                                 'learning rate': optimizer.param_groups[0]['lr'],
                                 'validation Dice': val_score,
-                                'images': wandb.Image(images[0].cpu()),
+                                'images': wandb.Image(np_image),
                                 'masks': {
-                                    'true': wandb.Image(true_masks[0].float().cpu()),
-                                    'pred': wandb.Image(masks_pred.argmax(dim=1)[0].float().cpu()),
+                                    'true': wandb.Image(np_mask_true),
+                                    'pred': wandb.Image(np_mask_pred),
                                 },
                                 'step': global_step,
                                 'epoch': epoch,
@@ -177,6 +185,7 @@ def get_args():
     parser.add_argument('--validation', '-v', dest='val', type=float, default=10.0,
                         help='Percent of the data that is used as validation (0-100)')
     parser.add_argument('--amp', action='store_true', default=False, help='Use mixed precision')
+    parser.add_argument('--save_valid_plot', '-svp', action='store_true', default=False, help='Use mixed precision')
     parser.add_argument('--bilinear', action='store_true', default=False, help='Use bilinear upsampling')
     parser.add_argument('--classes', '-c', type=int, default=2, help='Number of classes')
 
