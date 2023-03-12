@@ -39,7 +39,8 @@ def train_model(
         weight_decay: float = 1e-8,
         momentum: float = 0.999,
         gradient_clipping: float = 1.0,
-        save_epoch_plot: bool = False
+        save_epoch_plot: bool = False,
+        wandb_path: str = "./wandb"
 ):
     # 1. Create dataset
     try:
@@ -58,7 +59,7 @@ def train_model(
     val_loader = DataLoader(val_set, shuffle=False, drop_last=True, **loader_args)
 
     # (Initialize logging)
-    experiment = wandb.init(project='U-Net', resume='allow', anonymous='must')
+    experiment = wandb.init(project='U-Net', resume='allow', anonymous='must', dir=wandb_path)
     experiment.config.update(
         dict(epochs=epochs, batch_size=batch_size, learning_rate=learning_rate,
              val_percent=val_percent, save_checkpoint=save_checkpoint, img_scale=img_scale, amp=amp)
@@ -67,6 +68,8 @@ def train_model(
     logging.info(f'''Starting training:
         Epochs:          {epochs}
         Data path:       {root_data_path}
+        Checkpoint path: {dir_checkpoint}
+        Wandb path:      {wandb_path}
         Batch size:      {batch_size}
         Learning rate:   {learning_rate}
         Training size:   {n_train}
@@ -150,7 +153,6 @@ def train_model(
                         np_image = images[0].cpu()
                         np_mask_pred = masks_pred.argmax(dim=1)[0].float().cpu()
                         np_mask_true = true_masks[0].float().cpu()
-
                         try:
                             experiment.log({
                                 'learning rate': optimizer.param_groups[0]['lr'],
@@ -176,11 +178,15 @@ def train_model(
             torch.save(state_dict,
                        epoch_checkpoint_path.joinpath('checkpoint_epoch{}.pth'.format(epoch)))
             logging.info(f'Checkpoint {epoch} saved!')
-            if save_epoch_plot:
-                plot_evaluate(str(epoch_checkpoint_path / f"checkpoint_epoch{epoch}.jpg"), np_image, np_mask_pred,
-                              np_mask_true)
-            else:
-                plot_evaluate("", np_image, np_mask_pred,
+            logging.info(f'Plot training image of epoch {epoch}')
+            for i in range(enumerate(images[:3])):
+                fig_path = ""
+                if save_epoch_plot:
+                    fig_path = str(epoch_checkpoint_path / f"checkpoint_epoch{epoch}_{i}.jpg")
+                np_image = images[i].cpu()
+                np_mask_pred = masks_pred.argmax(dim=1)[i].float().cpu()
+                np_mask_true = true_masks[i].float().cpu()
+                plot_evaluate(fig_path, np_image, np_mask_pred,
                               np_mask_true)
 
 
@@ -188,6 +194,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks')
     parser.add_argument('--data_path', '-dp', type=str, default="./data", help='root data path')
     parser.add_argument('--check_point_path', '-cpp', type=str, default="./checkpoints", help='checkpoint model path')
+    parser.add_argument('--wandb_path', '-wp', type=str, default="./wandb", help='checkpoint model path')
     parser.add_argument('--epochs', '-e', metavar='E', type=int, default=5, help='Number of epochs')
     parser.add_argument('--batch-size', '-b', dest='batch_size', metavar='B', type=int, default=1, help='Batch size')
     parser.add_argument('--learning-rate', '-l', metavar='LR', type=float, default=1e-5,
@@ -233,6 +240,7 @@ if __name__ == '__main__':
     root_data_path = args.data_path
     dir_img = Path(f'{root_data_path}').joinpath("imgs")
     dir_mask = Path(f'{root_data_path}').joinpath("masks")
+    dir_checkpoint = Path(args.check_point_path)
     try:
         train_model(
             model=model,
