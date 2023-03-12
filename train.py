@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import os
 import random
 import sys
 import torch
@@ -170,6 +171,8 @@ def train_model(
             state_dict = model.state_dict()
             state_dict['mask_values'] = dataset.mask_values
             epoch_checkpoint_path = dir_checkpoint.joinpath(f"epoch{epoch}")
+            if not epoch_checkpoint_path.exists():
+                os.makedirs(str(epoch_checkpoint_path))
             torch.save(state_dict,
                        epoch_checkpoint_path.joinpath('checkpoint_epoch{}.pth'.format(epoch)))
             logging.info(f'Checkpoint {epoch} saved!')
