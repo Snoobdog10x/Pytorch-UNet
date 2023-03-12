@@ -13,7 +13,7 @@ def plot_img_and_mask(img, mask):
     plt.show()
 
 
-def plot_evaluate(img, pred, mask):
+def plot_evaluate(save_checkpoint_path: str, img, pred, mask):
     fig, ax = plt.subplots(1, 3)
     ax[0].set_title('Input image')
     ax[0].imshow(img.permute(1, 2, 0))
@@ -21,5 +21,6 @@ def plot_evaluate(img, pred, mask):
     ax[1].imshow(pred)
     ax[2].set_title(f'truth')
     ax[2].imshow(mask)
-    plt.savefig("wandb/latest-run/validate_plot/")
+    if save_checkpoint_path != "":
+        plt.savefig(save_checkpoint_path)
     plt.show()

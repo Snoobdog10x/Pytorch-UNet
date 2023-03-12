@@ -38,7 +38,7 @@ def train_model(
         weight_decay: float = 1e-8,
         momentum: float = 0.999,
         gradient_clipping: float = 1.0,
-        save_valid_plot: bool = False
+        save_epoch_plot: bool = False
 ):
     # 1. Create dataset
     try:
@@ -65,6 +65,7 @@ def train_model(
 
     logging.info(f'''Starting training:
         Epochs:          {epochs}
+        Data path:       {root_data_path}
         Batch size:      {batch_size}
         Learning rate:   {learning_rate}
         Training size:   {n_train}
@@ -73,6 +74,7 @@ def train_model(
         Device:          {device.type}
         Images scaling:  {img_scale}
         Mixed Precision: {amp}
+        Save epoch plot: {save_epoch_plot}
     ''')
 
     # 4. Set up the optimizer, the loss, the learning rate scheduler and the loss scaling for AMP
@@ -147,8 +149,6 @@ def train_model(
                         np_image = images[0].cpu()
                         np_mask_pred = masks_pred.argmax(dim=1)[0].float().cpu()
                         np_mask_true = true_masks[0].float().cpu()
-                        if save_valid_plot:
-                            plot_evaluate(np_image, np_mask_pred, np_mask_true)
 
                         try:
                             experiment.log({
@@ -165,17 +165,26 @@ def train_model(
                             })
                         except:
                             pass
-
         if save_checkpoint:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
             state_dict = model.state_dict()
             state_dict['mask_values'] = dataset.mask_values
-            torch.save(state_dict, str(dir_checkpoint / 'checkpoint_epoch{}.pth'.format(epoch)))
+            epoch_checkpoint_path = dir_checkpoint.joinpath(f"epoch{epoch}")
+            torch.save(state_dict,
+                       epoch_checkpoint_path.joinpath('checkpoint_epoch{}.pth'.format(epoch)))
             logging.info(f'Checkpoint {epoch} saved!')
+            if save_epoch_plot:
+                plot_evaluate(str(epoch_checkpoint_path / f"checkpoint_epoch{epoch}.jpg"), np_image, np_mask_pred,
+                              np_mask_true)
+            else:
+                plot_evaluate("", np_image, np_mask_pred,
+                              np_mask_true)
 
 
 def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks')
+    parser.add_argument('--data_path', '-dp', type=str, default="./data", help='root data path')
+    parser.add_argument('--check_point_path', '-cpp', type=str, default="./checkpoints", help='checkpoint model path')
     parser.add_argument('--epochs', '-e', metavar='E', type=int, default=5, help='Number of epochs')
     parser.add_argument('--batch-size', '-b', dest='batch_size', metavar='B', type=int, default=1, help='Batch size')
     parser.add_argument('--learning-rate', '-l', metavar='LR', type=float, default=1e-5,
@@ -185,7 +194,8 @@ def get_args():
     parser.add_argument('--validation', '-v', dest='val', type=float, default=10.0,
                         help='Percent of the data that is used as validation (0-100)')
     parser.add_argument('--amp', action='store_true', default=False, help='Use mixed precision')
-    parser.add_argument('--save_valid_plot', '-svp', action='store_true', default=False, help='Use mixed precision')
+    parser.add_argument('--save_epoch_plot', '-sep', type=bool, default=False,
+                        help='Save plot image after epoch')
     parser.add_argument('--bilinear', action='store_true', default=False, help='Use bilinear upsampling')
     parser.add_argument('--classes', '-c', type=int, default=2, help='Number of classes')
 
@@ -217,6 +227,9 @@ if __name__ == '__main__':
         logging.info(f'Model loaded from {args.load}')
 
     model.to(device=device)
+    root_data_path = args.data_path
+    dir_img = Path(f'{root_data_path}').joinpath("imgs")
+    dir_mask = Path(f'{root_data_path}').joinpath("masks")
     try:
         train_model(
             model=model,
@@ -226,6 +239,7 @@ if __name__ == '__main__':
             device=device,
             img_scale=args.scale,
             val_percent=args.val / 100,
+            save_epoch_plot=args.save_epoch_plot,
             amp=args.amp
         )
     except torch.cuda.OutOfMemoryError:
@@ -242,5 +256,6 @@ if __name__ == '__main__':
             device=device,
             img_scale=args.scale,
             val_percent=args.val / 100,
+            save_epoch_plot=args.save_epoch_plot,
             amp=args.amp
         )
