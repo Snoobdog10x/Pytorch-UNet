@@ -179,7 +179,7 @@ def train_model(
                        epoch_checkpoint_path.joinpath('checkpoint_epoch{}.pth'.format(epoch)))
             logging.info(f'Checkpoint {epoch} saved!')
             logging.info(f'Plot training image of epoch {epoch}')
-            for i in range(enumerate(images[:3])):
+            for i in range(3):
                 fig_path = ""
                 if save_epoch_plot:
                     fig_path = str(epoch_checkpoint_path / f"checkpoint_epoch{epoch}_{i}.jpg")
