@@ -172,17 +172,17 @@ def train_model(
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
             state_dict = model.state_dict()
             state_dict['mask_values'] = dataset.mask_values
-            epoch_checkpoint_path = dir_checkpoint.joinpath(f"epoch{epoch}")
-            if not epoch_checkpoint_path.exists():
-                os.makedirs(str(epoch_checkpoint_path))
+            best = dir_checkpoint.joinpath(f"best")
+            if not best.exists():
+                os.makedirs(str(best))
             torch.save(state_dict,
-                       epoch_checkpoint_path.joinpath('checkpoint_epoch{}.pth'.format(epoch)))
+                       best.joinpath('best.pth'))
             logging.info(f'Checkpoint {epoch} saved!')
             logging.info(f'Plot training image of epoch {epoch}')
             for i in range(3):
                 fig_path = ""
                 if save_epoch_plot:
-                    fig_path = str(epoch_checkpoint_path / f"checkpoint_epoch{epoch}_{i}.jpg")
+                    fig_path = str(dir_checkpoint / f"checkpoint_epoch{epoch}_{i}.jpg")
                 np_image = images[i].cpu()
                 np_mask_pred = masks_pred.argmax(dim=1)[i].float().cpu()
                 np_mask_true = true_masks[i].float().cpu()
