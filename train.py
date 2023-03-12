@@ -251,7 +251,8 @@ if __name__ == '__main__':
             img_scale=args.scale,
             val_percent=args.val / 100,
             save_epoch_plot=args.save_epoch_plot,
-            amp=args.amp
+            amp=args.amp,
+            wandb_path=args.wandb_path
         )
     except torch.cuda.OutOfMemoryError:
         logging.error('Detected OutOfMemoryError! '
@@ -268,5 +269,6 @@ if __name__ == '__main__':
             img_scale=args.scale,
             val_percent=args.val / 100,
             save_epoch_plot=args.save_epoch_plot,
-            amp=args.amp
+            amp=args.amp,
+            wandb_path=args.wandb_path
         )
