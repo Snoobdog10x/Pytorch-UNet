@@ -14,13 +14,14 @@ def plot_img_and_mask(img, mask):
 
 
 def plot_evaluate(save_checkpoint_path: str, img, pred, mask):
-    fig, ax = plt.subplots(1, 3)
-    ax[0].set_title('Input image')
-    ax[0].imshow(img.permute(1, 2, 0))
-    ax[1].set_title(f'predict')
-    ax[1].imshow(pred)
-    ax[2].set_title(f'truth')
-    ax[2].imshow(mask)
+    fig, ax = plt.subplots(3, 3)
+    ax[0][0].set_title('Input image')
+    ax[0][1].set_title(f'predict')
+    ax[0][2].set_title(f'truth')
+    for i in range(3):
+        ax[i][0].imshow(img[i].permute(1, 2, 0))
+        ax[i][1].imshow(pred[i])
+        ax[i][2].imshow(mask[i])
     if save_checkpoint_path != "":
         plt.savefig(save_checkpoint_path)
     plt.show()

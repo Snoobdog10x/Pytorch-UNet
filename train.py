@@ -4,6 +4,8 @@ import os
 import os
 import random
 import sys
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -39,7 +41,7 @@ def train_model(
         weight_decay: float = 1e-8,
         momentum: float = 0.999,
         gradient_clipping: float = 1.0,
-        save_epoch_plot: bool = False,
+        save_epoch_plot: bool = True,
         wandb_path: str = "./wandb"
 ):
     # 1. Create dataset
@@ -88,7 +90,6 @@ def train_model(
     grad_scaler = torch.cuda.amp.GradScaler(enabled=amp)
     criterion = nn.CrossEntropyLoss() if model.n_classes > 1 else nn.BCEWithLogitsLoss()
     global_step = 0
-
     # 5. Begin training
     for epoch in range(1, epochs + 1):
         model.train()
@@ -96,7 +97,6 @@ def train_model(
         with tqdm(total=n_train, desc=f'Epoch {epoch}/{epochs}', unit='img') as pbar:
             for batch in train_loader:
                 images, true_masks = batch['image'], batch['mask']
-
                 assert images.shape[1] == model.n_channels, \
                     f'Network has been defined with {model.n_channels} input channels, ' \
                     f'but loaded images have {images.shape[1]} channels. Please check that ' \
@@ -168,35 +168,38 @@ def train_model(
                             })
                         except:
                             pass
-        if save_checkpoint:
+        fig_path = ""
+        if save_epoch_plot:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
+            logging.info(f'Plot training image of epoch {epoch}')
+            first_batch = next(iter(val_loader))
+            images, true_masks = first_batch['image'], first_batch['mask']
+            images = images.to(device=device, dtype=torch.float32, memory_format=torch.channels_last)
+            true_masks = true_masks.to(device=device, dtype=torch.long)
+            masks_pred = model(images)
+            fig_path = str(dir_checkpoint / f"checkpoint_epoch{epoch}.jpg")
+            np_images = images.cpu()[:3]
+            np_mask_preds = masks_pred.argmax(dim=1).float().cpu()[:3]
+            np_mask_trues = true_masks.float().cpu()[:3]
+            plot_evaluate(fig_path, np_images, np_mask_preds,
+                          np_mask_trues)
+        if save_checkpoint:
             state_dict = model.state_dict()
             state_dict['mask_values'] = dataset.mask_values
             best = dir_checkpoint.joinpath(f"best")
-            if not best.exists():
-                os.makedirs(str(best))
+            Path(best).mkdir(parents=True, exist_ok=True)
             torch.save(state_dict,
                        best.joinpath('best.pth'))
             logging.info(f'Checkpoint {epoch} saved!')
-            logging.info(f'Plot training image of epoch {epoch}')
-            for i in range(3):
-                fig_path = ""
-                if save_epoch_plot:
-                    fig_path = str(dir_checkpoint / f"checkpoint_epoch{epoch}_{i}.jpg")
-                np_image = images[i].cpu()
-                np_mask_pred = masks_pred.argmax(dim=1)[i].float().cpu()
-                np_mask_true = true_masks[i].float().cpu()
-                plot_evaluate(fig_path, np_image, np_mask_pred,
-                              np_mask_true)
 
 
 def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks')
-    parser.add_argument('--data_path', '-dp', type=str, default="./data", help='root data path')
-    parser.add_argument('--check_point_path', '-cpp', type=str, default="./checkpoints", help='checkpoint model path')
-    parser.add_argument('--wandb_path', '-wp', type=str, default="./wandb", help='checkpoint model path')
+    parser.add_argument('--data_path', '-dp', type=str, default="data", help='root data path')
+    parser.add_argument('--check_point_path', '-cpp', type=str, default="checkpoints", help='checkpoint model path')
+    parser.add_argument('--wandb_path', '-wp', type=str, default="wandb", help='checkpoint model path')
     parser.add_argument('--epochs', '-e', metavar='E', type=int, default=5, help='Number of epochs')
-    parser.add_argument('--batch-size', '-b', dest='batch_size', metavar='B', type=int, default=1, help='Batch size')
+    parser.add_argument('--batch-size', '-b', dest='batch_size', metavar='B', type=int, default=8, help='Batch size')
     parser.add_argument('--learning-rate', '-l', metavar='LR', type=float, default=1e-5,
                         help='Learning rate', dest='lr')
     parser.add_argument('--load', '-f', type=str, default=False, help='Load model from a .pth file')
@@ -204,7 +207,7 @@ def get_args():
     parser.add_argument('--validation', '-v', dest='val', type=float, default=10.0,
                         help='Percent of the data that is used as validation (0-100)')
     parser.add_argument('--amp', action='store_true', default=False, help='Use mixed precision')
-    parser.add_argument('--save_epoch_plot', '-sep', type=bool, default=False,
+    parser.add_argument('--save_epoch_plot', '-sep', type=bool, default=True,
                         help='Save plot image after epoch')
     parser.add_argument('--bilinear', action='store_true', default=False, help='Use bilinear upsampling')
     parser.add_argument('--classes', '-c', type=int, default=2, help='Number of classes')
