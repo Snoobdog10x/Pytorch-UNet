@@ -130,7 +130,6 @@ def train_model(
                 histograms['Gradients/' + tag] = wandb.Histogram(value.grad.data.cpu())
         fig_path = ""
         if save_epoch_plot:
-            Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
             fig_path = str(dir_checkpoint / f"checkpoint_epoch{epoch}.jpg")
         val_score, val_loss = evaluate(model, val_loader, device, amp, fig_path)
 
@@ -213,6 +212,7 @@ if __name__ == '__main__':
     dir_img = Path(f'{root_data_path}').joinpath("imgs")
     dir_mask = Path(f'{root_data_path}').joinpath("masks")
     dir_checkpoint = Path(args.check_point_path)
+    dir_checkpoint.mkdir(parents=True, exist_ok=True)
     try:
         train_model(
             model=model,
