@@ -1,4 +1,24 @@
 import matplotlib.pyplot as plt
+import os
+from pathlib import Path
+from csv import writer
+
+
+def save_running(path: str, train_loss, validation_loss, valid_dice, epoch):
+    Path(path).mkdir(parents=True, exist_ok=True)
+    HEADER = ["Epoch", "Train loss", "Validation loss", "Validation dice"]
+    List = [epoch, train_loss, validation_loss, valid_dice]
+    if epoch == 1:
+        with open(f'{path}/running.csv', 'w') as f_object:
+            writer_object = writer(f_object)
+            writer_object.writerow(HEADER)
+            writer_object.writerow(List)
+            f_object.close()
+    else:
+        with open(f'{path}/running.csv', 'a') as f_object:
+            writer_object = writer(f_object)
+            writer_object.writerow(List)
+            f_object.close()
 
 
 def plot_img_and_mask(img, mask):

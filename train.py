@@ -1,17 +1,9 @@
 import argparse
 import logging
 import os
-import os
-import random
-import sys
-
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.transforms as transforms
-import torchvision.transforms.functional as TF
-from utils.utils import plot_evaluate
 from pathlib import Path
 from torch import optim
 from torch.utils.data import DataLoader, random_split
@@ -23,6 +15,7 @@ from unet import UNet
 from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 from utils.early_stopper import EarlyStopper
+from utils.utils import save_running
 
 dir_img = Path('./data/imgs/')
 dir_mask = Path('./data/masks/')
@@ -142,20 +135,14 @@ def train_model(
         val_score, val_loss = evaluate(model, val_loader, device, amp, fig_path)
 
         logging.info('Validation Dice score: {}'.format(val_score))
-        np_image = images[0].cpu()
-        np_mask_pred = masks_pred.argmax(dim=1)[0].float().cpu()
-        np_mask_true = true_masks[0].float().cpu()
+        train_loss = epoch_loss / max(len(train_loader), 1)
+        save_running(dir_checkpoint, train_loss, val_loss.item(), val_score.item(), epoch)
         try:
             experiment.log({
                 'learning rate': optimizer.param_groups[0]['lr'],
-                'train loss': epoch_loss / max(len(train_loader), 1),
+                'train loss': train_loss,
                 'validation Dice': val_score,
                 'validation Loss': val_loss,
-                'images': wandb.Image(np_image),
-                'masks': {
-                    'true': wandb.Image(np_mask_true),
-                    'pred': wandb.Image(np_mask_pred),
-                },
                 'epoch': epoch,
                 **histograms
             })
@@ -170,9 +157,9 @@ def train_model(
             torch.save(state_dict,
                        best.joinpath('best.pth'))
             logging.info(f'Checkpoint {epoch} saved!')
-
         if early_stopper.early_stop(val_loss):
             break
+
 
 
 def get_args():
