@@ -22,6 +22,7 @@ from evaluate import evaluate
 from unet import UNet
 from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
+from utils.early_stopper import EarlyStopper
 
 dir_img = Path('./data/imgs/')
 dir_mask = Path('./data/masks/')
@@ -86,10 +87,9 @@ def train_model(
     # 4. Set up the optimizer, the loss, the learning rate scheduler and the loss scaling for AMP
     optimizer = optim.RMSprop(model.parameters(),
                               lr=learning_rate, weight_decay=weight_decay, momentum=momentum, foreach=True)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5)  # goal: maximize Dice score
     grad_scaler = torch.cuda.amp.GradScaler(enabled=amp)
     criterion = nn.CrossEntropyLoss() if model.n_classes > 1 else nn.BCEWithLogitsLoss()
-    global_step = 0
+    early_stopper = EarlyStopper(patience=3, min_delta=10)
     # 5. Begin training
     for epoch in range(1, epochs + 1):
         model.train()
@@ -123,66 +123,45 @@ def train_model(
                 torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clipping)
                 grad_scaler.step(optimizer)
                 grad_scaler.update()
-
                 pbar.update(images.shape[0])
-                global_step += 1
                 epoch_loss += loss.item()
-                experiment.log({
-                    'train loss': loss.item(),
-                    'step': global_step,
-                    'epoch': epoch
-                })
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
 
-                # Evaluation round
-                division_step = (n_train // (5 * batch_size))
-                if division_step > 0:
-                    if global_step % division_step == 0:
-                        histograms = {}
-                        for tag, value in model.named_parameters():
-                            tag = tag.replace('/', '.')
-                            if not (torch.isinf(value) | torch.isnan(value)).any():
-                                histograms['Weights/' + tag] = wandb.Histogram(value.data.cpu())
-                            if not (torch.isinf(value.grad) | torch.isnan(value.grad)).any():
-                                histograms['Gradients/' + tag] = wandb.Histogram(value.grad.data.cpu())
-
-                        val_score = evaluate(model, val_loader, device, amp)
-                        scheduler.step(val_score)
-
-                        logging.info('Validation Dice score: {}'.format(val_score))
-                        np_image = images[0].cpu()
-                        np_mask_pred = masks_pred.argmax(dim=1)[0].float().cpu()
-                        np_mask_true = true_masks[0].float().cpu()
-                        try:
-                            experiment.log({
-                                'learning rate': optimizer.param_groups[0]['lr'],
-                                'validation Dice': val_score,
-                                'images': wandb.Image(np_image),
-                                'masks': {
-                                    'true': wandb.Image(np_mask_true),
-                                    'pred': wandb.Image(np_mask_pred),
-                                },
-                                'step': global_step,
-                                'epoch': epoch,
-                                **histograms
-                            })
-                        except:
-                            pass
+        logging.info('Validation')
+        histograms = {}
+        for tag, value in model.named_parameters():
+            tag = tag.replace('/', '.')
+            if not (torch.isinf(value) | torch.isnan(value)).any():
+                histograms['Weights/' + tag] = wandb.Histogram(value.data.cpu())
+            if not (torch.isinf(value.grad) | torch.isnan(value.grad)).any():
+                histograms['Gradients/' + tag] = wandb.Histogram(value.grad.data.cpu())
         fig_path = ""
         if save_epoch_plot:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-            logging.info(f'Plot training image of epoch {epoch}')
-            first_batch = next(iter(val_loader))
-            images, true_masks = first_batch['image'], first_batch['mask']
-            images = images.to(device=device, dtype=torch.float32, memory_format=torch.channels_last)
-            true_masks = true_masks.to(device=device, dtype=torch.long)
-            masks_pred = model(images)
             fig_path = str(dir_checkpoint / f"checkpoint_epoch{epoch}.jpg")
-            np_images = images.cpu()[:3]
-            np_mask_preds = masks_pred.argmax(dim=1).float().cpu()[:3]
-            np_mask_trues = true_masks.float().cpu()[:3]
-            plot_evaluate(fig_path, np_images, np_mask_preds,
-                          np_mask_trues)
+        val_score, val_loss = evaluate(model, val_loader, device, amp, fig_path)
+
+        logging.info('Validation Dice score: {}'.format(val_score))
+        np_image = images[0].cpu()
+        np_mask_pred = masks_pred.argmax(dim=1)[0].float().cpu()
+        np_mask_true = true_masks[0].float().cpu()
+        try:
+            experiment.log({
+                'learning rate': optimizer.param_groups[0]['lr'],
+                'train loss': epoch_loss / max(len(train_loader), 1),
+                'validation Dice': val_score,
+                'validation Loss': val_loss,
+                'images': wandb.Image(np_image),
+                'masks': {
+                    'true': wandb.Image(np_mask_true),
+                    'pred': wandb.Image(np_mask_pred),
+                },
+                'epoch': epoch,
+                **histograms
+            })
+        except:
+            pass
+
         if save_checkpoint:
             state_dict = model.state_dict()
             state_dict['mask_values'] = dataset.mask_values
@@ -191,6 +170,9 @@ def train_model(
             torch.save(state_dict,
                        best.joinpath('best.pth'))
             logging.info(f'Checkpoint {epoch} saved!')
+
+        if early_stopper.early_stop(val_loss):
+            break
 
 
 def get_args():
