@@ -44,7 +44,7 @@ def evaluate_test(net, device, test_dir, output_viz, img_scale):
         dataset = BasicDataset(f"{test_dir}/imgs", f"{test_dir}/masks", img_scale)
     num_val_batches = len(dataset)
     loader_args = dict(batch_size=16, num_workers=os.cpu_count(), pin_memory=True)
-    train_loader = DataLoader(dataset, shuffle=True, **loader_args)
+    test_loader = DataLoader(dataset, shuffle=False, **loader_args)
     dice_score = 0
     count = 1
     batch_num = []
@@ -52,7 +52,7 @@ def evaluate_test(net, device, test_dir, output_viz, img_scale):
     output_path = Path(output_viz)
     output_path.mkdir(exist_ok=True, parents=True)
     with torch.no_grad():
-        for batch in tqdm(train_loader, total=num_val_batches, desc='Validation round', unit='batch', leave=False):
+        for batch in tqdm(test_loader, total=num_val_batches, desc='Validation round', unit='batch', leave=False):
             image, mask_true = batch['image'], batch['mask']
             image = image.to(device=device, dtype=torch.float32, memory_format=torch.channels_last)
             mask_true = mask_true.to(device=device, dtype=torch.long)
