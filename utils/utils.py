@@ -4,9 +4,9 @@ from pathlib import Path
 from csv import writer
 
 
-def save_running(path: str, train_loss, validation_loss, valid_dice, epoch):
-    HEADER = ["Epoch", "Train_loss", "Validation_loss", "Validation_dice"]
-    List = [epoch, train_loss, validation_loss, valid_dice]
+def save_running(path: str, train_loss, validation_loss, valid_dice, learning_rate, epoch):
+    HEADER = ["Epoch", "Train_loss", "Validation_loss", "Validation_dice", "Learning_rate"]
+    List = [epoch, train_loss, validation_loss, valid_dice, learning_rate]
     if epoch == 1:
         with open(f'{path}/running.csv', 'w') as f_object:
             writer_object = writer(f_object)

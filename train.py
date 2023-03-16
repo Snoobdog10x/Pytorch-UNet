@@ -135,7 +135,8 @@ def train_model(
 
         logging.info('Validation Dice score: {}'.format(val_score))
         train_loss = epoch_loss / max(len(train_loader), 1)
-        save_running(dir_checkpoint, train_loss, val_loss.item(), val_score.item(), epoch)
+        save_running(dir_checkpoint, train_loss, val_loss, val_score.item(), optimizer.param_groups[0]['lr'],
+                     epoch)
         try:
             experiment.log({
                 'learning rate': optimizer.param_groups[0]['lr'],
@@ -158,7 +159,6 @@ def train_model(
             logging.info(f'Checkpoint {epoch} saved!')
         if early_stopper.early_stop(val_loss):
             break
-
 
 
 def get_args():
