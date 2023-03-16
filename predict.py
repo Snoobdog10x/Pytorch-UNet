@@ -80,7 +80,9 @@ def evaluate_test(net, device, test_dir, output_viz, img_scale):
             Path(fig_path).mkdir(parents=True, exist_ok=True)
             u.plot_evaluate(f"{fig_path}_batch_{count}.jpg", np_images, np_mask_preds,
                             np_mask_trues)
-        u.plot_and_save_running(f"{output_viz}", f"Test accuracy, avg:{dice_score / max(num_val_batches, 1)}",
+        avg_dice_score = dice_score / max(num_val_batches, 1)
+        logging.info(f'avg dice score {avg_dice_score}')
+        u.plot_and_save_running(f"{output_viz}", f"Test accuracy {avg_dice_score}",
                                 batch_num, batch_dice)
 
 
