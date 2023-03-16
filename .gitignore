@@ -8,3 +8,4 @@ venv/
 .idea/
 wandb/
 test_evaluate/
+trained_models/
