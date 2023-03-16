@@ -1,16 +1,20 @@
 import argparse
 import logging
 import os
-
+from utils.data_loading import BasicDataset, CarvanaDataset
 import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
-from torchvision import transforms
-
+from tqdm import tqdm
 from utils.data_loading import BasicDataset
 from unet import UNet
 from utils.utils import plot_img_and_mask
+from utils.dice_score import multiclass_dice_coeff, dice_coeff, dice_loss
+from utils import utils as u
+from pathlib import Path
+from torch.utils.data import DataLoader, random_split
+
 
 def predict_img(net,
                 full_img,
@@ -33,14 +37,62 @@ def predict_img(net,
     return mask[0].long().squeeze().numpy()
 
 
+def evaluate_test(net, device, test_dir, output_viz, img_scale):
+    try:
+        dataset = CarvanaDataset(f"{test_dir}/imgs", f"{test_dir}/masks", img_scale)
+    except (AssertionError, RuntimeError, IndexError):
+        dataset = BasicDataset(f"{test_dir}/imgs", f"{test_dir}/masks", img_scale)
+    num_val_batches = len(dataset)
+    loader_args = dict(batch_size=32, num_workers=os.cpu_count(), pin_memory=True)
+    train_loader = DataLoader(dataset, shuffle=True, **loader_args)
+    dice_score = 0
+    count = 1
+    batch_num = []
+    dice_scores = []
+    output_path = Path(output_viz)
+    output_path.mkdir(exist_ok=True, parents=True)
+    with torch.no_grad():
+        for batch in tqdm(train_loader, total=num_val_batches, desc='Validation round', unit='batch', leave=False):
+            image, mask_true = batch['image'], batch['mask']
+            image = image.to(device=device, dtype=torch.float32, memory_format=torch.channels_last)
+            mask_true = mask_true.to(device=device, dtype=torch.long)
+            mask_pred = net(image)
+            if net.n_classes == 1:
+                assert mask_true.min() >= 0 and mask_true.max() <= 1, 'True mask indices should be in [0, 1]'
+                # compute the Dice score
+                batch_dice = dice_coeff((F.sigmoid(mask_pred) > 0.5).float(), mask_true, reduce_batch_first=False)
+                dice_score += batch_dice
+            else:
+                assert mask_true.min() >= 0 and mask_true.max() < net.n_classes, 'True mask indices should be in [0, n_classes['
+                # compute the Dice score, ignoring background
+                batch_dice = multiclass_dice_coeff(
+                    F.one_hot(mask_true, net.n_classes).permute(0, 3, 1, 2).float()[:, 1:],
+                    F.one_hot(mask_pred.argmax(dim=1), net.n_classes).permute(0, 3, 1, 2).float()[:, 1:],
+                    reduce_batch_first=False)
+                dice_score += batch_dice
+            batch_num.append(count)
+            dice_scores.append(batch_dice)
+            count += 1
+            np_images = image.cpu()[:3]
+            np_mask_preds = mask_pred.argmax(dim=1).float().cpu()[:3]
+            np_mask_trues = mask_true.float().cpu()[:3]
+            fig_path = f"{output_viz}/test_images"
+            Path(fig_path).mkdir(parents=True, exist_ok=True)
+            u.plot_evaluate(f"{fig_path}_batch_{count}.jpg", np_images, np_mask_preds,
+                            np_mask_trues)
+        u.plot_and_save_running(f"{output_viz}", f"Test accuracy, avg:{dice_score / max(num_val_batches, 1)}",
+                                batch_num, batch_dice)
+
+
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
     parser.add_argument('--model', '-m', default='MODEL.pth', metavar='FILE',
                         help='Specify the file in which the model is stored')
-    parser.add_argument('--input', '-i', metavar='INPUT', nargs='+', help='Filenames of input images', required=True)
-    parser.add_argument('--output', '-o', metavar='OUTPUT', nargs='+', help='Filenames of output images')
+    parser.add_argument('--input', '-i', type=str, default="data", help='root data path')
+    parser.add_argument('--output', '-o', type=str, default="data", help='root data path')
     parser.add_argument('--viz', '-v', action='store_true',
                         help='Visualize the images as they are processed')
+    parser.add_argument('--amp', action='store_true', default=False, help='Use mixed precision')
     parser.add_argument('--no-save', '-n', action='store_true', help='Do not save the output masks')
     parser.add_argument('--mask-threshold', '-t', type=float, default=0.5,
                         help='Minimum probability value to consider a mask pixel white')
@@ -48,7 +100,7 @@ def get_args():
                         help='Scale factor for the input images')
     parser.add_argument('--bilinear', action='store_true', default=False, help='Use bilinear upsampling')
     parser.add_argument('--classes', '-c', type=int, default=2, help='Number of classes')
-    
+
     return parser.parse_args()
 
 
@@ -79,12 +131,11 @@ def mask_to_image(mask: np.ndarray, mask_values):
 if __name__ == '__main__':
     args = get_args()
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     in_files = args.input
-    out_files = get_output_filenames(args)
-
+    # out_files = get_output_filenames(args)
+    out_files = args.output
     net = UNet(n_channels=3, n_classes=args.classes, bilinear=args.bilinear)
-
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
@@ -95,23 +146,23 @@ if __name__ == '__main__':
     net.load_state_dict(state_dict)
 
     logging.info('Model loaded!')
-
-    for i, filename in enumerate(in_files):
-        logging.info(f'Predicting image {filename} ...')
-        img = Image.open(filename)
-
-        mask = predict_img(net=net,
-                           full_img=img,
-                           scale_factor=args.scale,
-                           out_threshold=args.mask_threshold,
-                           device=device)
-
-        if not args.no_save:
-            out_filename = out_files[i]
-            result = mask_to_image(mask, mask_values)
-            result.save(out_filename)
-            logging.info(f'Mask saved to {out_filename}')
-
-        if args.viz:
-            logging.info(f'Visualizing results for image {filename}, close to continue...')
-            plot_img_and_mask(img, mask)
+    evaluate_test(net, device, in_files, out_files, args.scale)
+    # for i, filename in enumerate(in_files):
+    #     logging.info(f'Predicting image {filename} ...')
+    #     img = Image.open(filename)
+    #
+    #     mask = predict_img(net=net,
+    #                        full_img=img,
+    #                        scale_factor=args.scale,
+    #                        out_threshold=args.mask_threshold,
+    #                        device=device)
+    #
+    #     if not args.no_save:
+    #         out_filename = out_files[i]
+    #         result = mask_to_image(mask, mask_values)
+    #         result.save(out_filename)
+    #         logging.info(f'Mask saved to {out_filename}')
+    #
+    #     if args.viz:
+    #         logging.info(f'Visualizing results for image {filename}, close to continue...')
+    #         plot_img_and_mask(img, mask)
