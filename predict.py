@@ -43,7 +43,7 @@ def evaluate_test(net, device, test_dir, output_viz, img_scale):
     except (AssertionError, RuntimeError, IndexError):
         dataset = BasicDataset(f"{test_dir}/imgs", f"{test_dir}/masks", img_scale)
     num_val_batches = len(dataset)
-    loader_args = dict(batch_size=32, num_workers=os.cpu_count(), pin_memory=True)
+    loader_args = dict(batch_size=16, num_workers=os.cpu_count(), pin_memory=True)
     train_loader = DataLoader(dataset, shuffle=True, **loader_args)
     dice_score = 0
     count = 1
