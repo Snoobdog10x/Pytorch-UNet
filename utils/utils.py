@@ -11,18 +11,24 @@ def plot_running(path: str):
     epochs = data['Epoch'].tolist()
     np_epochs = np.arange(1, len(epochs) + 1, 1)
     __plot_and_save_running(path, "train vs valid loss", np_epochs,
-                            [data["Train_loss"].tolist(), data["Validation_loss"].tolist()])
+                            [data["Train_loss"].tolist(), data["Validation_loss"].tolist()], ["train", "valid"])
     __plot_and_save_running(path, "accuracy", np_epochs,
                             [data["Validation_dice"].tolist()])
     __plot_and_save_running(path, "Learning rate", np_epochs,
                             [data["Learning_rate"].tolist()])
 
 
-def __plot_and_save_running(path, title: str, np_epoch, data: []):
+def __plot_and_save_running(path, title: str, np_epoch, data: [], line_label: [] = None):
     fig, ax = plt.subplots()
     ax.set_title(title)
-    for value in data:
+    for i, value in enumerate(data):
+        if line_label is not None:
+            if line_label[i] is not None:
+                ax.plot(np_epoch, value, label=line_label[i])
+                continue
         ax.plot(np_epoch, value)
+    if line_label is not None:
+        ax.legend()
     save_path = f"{path[:-4]}_{title.replace(' ', '_')}.png"
     plt.savefig(save_path)
 
