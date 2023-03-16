@@ -15,7 +15,7 @@ from unet import UNet
 from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 from utils.early_stopper import EarlyStopper
-from utils.utils import save_running
+from utils.utils import save_running_csv, plot_running
 
 dir_img = Path('./data/imgs/')
 dir_mask = Path('./data/masks/')
@@ -129,14 +129,18 @@ def train_model(
             if not (torch.isinf(value.grad) | torch.isnan(value.grad)).any():
                 histograms['Gradients/' + tag] = wandb.Histogram(value.grad.data.cpu())
         fig_path = ""
+        epoch_path = dir_checkpoint.joinpath("validation_image")
         if save_epoch_plot:
-            fig_path = str(dir_checkpoint / f"checkpoint_epoch{epoch}.jpg")
+            epoch_path.mkdir(parents=True, exist_ok=True)
+            fig_path = str(epoch_path / f"checkpoint_epoch{epoch}.jpg")
         val_score, val_loss = evaluate(model, val_loader, device, amp, fig_path)
 
         logging.info('Validation Dice score: {}'.format(val_score))
         train_loss = epoch_loss / max(len(train_loader), 1)
-        save_running(dir_checkpoint, train_loss, val_loss, val_score.item(), optimizer.param_groups[0]['lr'],
-                     epoch)
+        running_path = save_running_csv(dir_checkpoint, train_loss, val_loss, val_score.item(),
+                                        optimizer.param_groups[0]['lr'],
+                                        epoch)
+        plot_running(running_path)
         try:
             experiment.log({
                 'learning rate': optimizer.param_groups[0]['lr'],
