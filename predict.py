@@ -44,6 +44,7 @@ def evaluate_test(net, device, test_dir, output_viz, out_threshold=0.5):
     test_loader = DataLoader(dataset, shuffle=False, **loader_args)
     num_test_batches = len(test_loader)
     batch_dice_scores = []
+    total_dict_score = 0
     loader_bar = tqdm(test_loader, total=num_test_batches, desc='Validation round', unit='batch', leave=False)
     with torch.no_grad():
         for index, batch in enumerate(loader_bar, start=1):
@@ -61,11 +62,11 @@ def evaluate_test(net, device, test_dir, output_viz, out_threshold=0.5):
                     reduce_batch_first=False)
             else:
                 dice_score = dice_coeff((F.sigmoid(mask_pred) > 0.5).float(), mask_true, reduce_batch_first=False)
+            total_dict_score += dice_score.item()
             batch_dice_scores.append(dice_score.item())
             logging.info(f'\nBatch {index} Dice score: {dice_score.item()}')
             save_running_csv(output_viz, ["Batches", "Dice_score"], [index, dice_score.item()], index == 1)
-        len_run_batches = len(batch_dice_scores)
-        logging.info(f'\nAvg Dice score: {sum(batch_dice_scores) / max(len_run_batches, 1)}')
+        logging.info(f'\nAvg Dice score: {total_dict_score / max(num_test_batches, 1)}')
 
 
 def get_args():
