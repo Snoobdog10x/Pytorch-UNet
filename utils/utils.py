@@ -32,6 +32,7 @@ def plot_and_save_running(path, title: str, np_epoch, data: [], line_label: [] =
         ax.legend()
     save_path = f"{path}_{title.replace(' ', '_')}.png"
     plt.savefig(save_path)
+    plt.close()
 
 
 def save_running_csv(path: str, train_loss, validation_loss, valid_dice, learning_rate, epoch):
@@ -75,4 +76,5 @@ def plot_evaluate(save_checkpoint_path: str, img, pred, mask):
     fig.subplots_adjust(wspace=0.5, hspace=0.5)
     if save_checkpoint_path != "":
         plt.savefig(save_checkpoint_path)
+    plt.close()
     # plt.show()

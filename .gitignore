@@ -9,3 +9,4 @@ venv/
 wandb/
 test_evaluate/
 trained_models/
+augmented_data/

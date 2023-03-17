@@ -37,7 +37,8 @@ def predict_img(net,
     return mask[0].long().squeeze().numpy()
 
 
-def evaluate_test(net, device, test_dir, output_viz, img_scale):
+def evaluate_test(net, device, test_dir: str = "", output_viz: str = "test_evaluate",
+                  img_scale=1):
     try:
         dataset = CarvanaDataset(f"{test_dir}/imgs", f"{test_dir}/masks", img_scale)
     except (AssertionError, RuntimeError, IndexError):
@@ -88,7 +89,7 @@ def evaluate_test(net, device, test_dir, output_viz, img_scale):
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
-    parser.add_argument('--model', '-m', default='MODEL.pth', metavar='FILE',
+    parser.add_argument('--model', '-m', default='trained_models/model_1/best.pth', metavar='FILE',
                         help='Specify the file in which the model is stored')
     parser.add_argument('--input', '-i', type=str, default="data", help='root data path')
     parser.add_argument('--output', '-o', type=str, default="data", help='root data path')
