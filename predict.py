@@ -83,7 +83,7 @@ def evaluate_test(net, device, test_dir, output_viz, img_scale):
         avg_dice_score = dice_score / max(num_val_batches, 1)
         logging.info(f'avg dice score {avg_dice_score}')
         u.plot_and_save_running(f"{output_viz}", f"Test accuracy {avg_dice_score}",
-                                batch_num, batch_dice)
+                                batch_num, dice_scores)
 
 
 def get_args():
