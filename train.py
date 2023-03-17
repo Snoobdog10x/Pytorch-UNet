@@ -137,9 +137,9 @@ def train_model(
 
         logging.info('Validation Dice score: {}'.format(val_score))
         train_loss = epoch_loss / max(len(train_loader), 1)
-        running_path = save_running_csv(dir_checkpoint, train_loss, val_loss, val_score.item(),
-                                        optimizer.param_groups[0]['lr'],
-                                        epoch)
+        values = [epoch, train_loss, val_loss, val_score, learning_rate]
+        HEADER = ["Epoch", "Train_loss", "Validation_loss", "Validation_dice", "Learning_rate"]
+        running_path = save_running_csv(dir_checkpoint, HEADER, values, epoch == 1)
         plot_running(running_path)
         try:
             experiment.log({

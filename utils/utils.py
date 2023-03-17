@@ -35,19 +35,18 @@ def plot_and_save_running(path, title: str, np_epoch, data: [], line_label: [] =
     plt.close()
 
 
-def save_running_csv(path: str, train_loss, validation_loss, valid_dice, learning_rate, epoch):
-    HEADER = ["Epoch", "Train_loss", "Validation_loss", "Validation_dice", "Learning_rate"]
-    List = [epoch, train_loss, validation_loss, valid_dice, learning_rate]
-    if epoch == 1:
+def save_running_csv(path: str, HEADER: [], values: [], is_first: bool):
+    assert len(HEADER) == len(values), "same size header and values"
+    if is_first:
         with open(f'{path}/running.csv', 'w') as f_object:
             writer_object = writer(f_object)
             writer_object.writerow(HEADER)
-            writer_object.writerow(List)
+            writer_object.writerow(values)
             f_object.close()
     else:
         with open(f'{path}/running.csv', 'a') as f_object:
             writer_object = writer(f_object)
-            writer_object.writerow(List)
+            writer_object.writerow(values)
             f_object.close()
     return f'{path}/running.csv'
 
@@ -65,16 +64,28 @@ def plot_img_and_mask(img, mask):
 
 
 def plot_evaluate(save_checkpoint_path: str, img, pred, mask):
-    fig, ax = plt.subplots(3, 3)
-    ax[0][0].set_title('Input image')
-    ax[0][1].set_title(f'predict')
-    ax[0][2].set_title(f'truth')
-    for i in range(3):
-        ax[i][0].imshow(img[i].permute(1, 2, 0))
-        ax[i][1].imshow(pred[i])
-        ax[i][2].imshow(mask[i])
+    img_len = len(img)
+    fig, ax = plt.subplots(img_len, 3)
+    if img_len > 1:
+        ax[0][0].set_title('Input image')
+        ax[0][1].set_title(f'predict')
+        ax[0][2].set_title(f'truth')
+    else:
+        ax[0].set_title('Input image')
+        ax[1].set_title(f'predict')
+        ax[2].set_title(f'truth')
+    for i in range(img_len):
+        if img_len > 1:
+            ax[i][0].imshow(img[i].permute(1, 2, 0))
+            ax[i][1].imshow(pred[i])
+            ax[i][2].imshow(mask[i])
+        else:
+            ax[0].imshow(img[i].permute(1, 2, 0))
+            ax[1].imshow(pred[i])
+            ax[2].imshow(mask[i])
     fig.subplots_adjust(wspace=0.5, hspace=0.5)
     if save_checkpoint_path != "":
         plt.savefig(save_checkpoint_path)
+    # plt.close()
+    plt.show()
     plt.close()
-    # plt.show()
