@@ -12,6 +12,7 @@ from tqdm import tqdm
 import wandb
 from evaluate import evaluate
 from unet import UNet
+from utils.best_checker import BestChecker
 from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 from utils.early_stopper import EarlyStopper
@@ -83,6 +84,7 @@ def train_model(
     grad_scaler = torch.cuda.amp.GradScaler(enabled=amp)
     criterion = nn.CrossEntropyLoss() if model.n_classes > 1 else nn.BCEWithLogitsLoss()
     early_stopper = EarlyStopper(patience=3, min_delta=10)
+    best_checker = BestChecker()
     # 5. Begin training
     for epoch in range(1, epochs + 1):
         model.train()
@@ -156,10 +158,15 @@ def train_model(
         if save_checkpoint:
             state_dict = model.state_dict()
             state_dict['mask_values'] = dataset.mask_values
-            best = dir_checkpoint.joinpath(f"best")
-            Path(best).mkdir(parents=True, exist_ok=True)
+            if best_checker.is_best(val_score, epoch):
+                best = dir_checkpoint.joinpath(f"best")
+                Path(best).mkdir(parents=True, exist_ok=True)
+                torch.save(state_dict,
+                           best.joinpath('best.pth'))
+            latest = dir_checkpoint.joinpath(f"latest")
+            Path(latest).mkdir(parents=True, exist_ok=True)
             torch.save(state_dict,
-                       best.joinpath('best.pth'))
+                       best.joinpath('latest.pth'))
             logging.info(f'Checkpoint {epoch} saved!')
         if early_stopper.early_stop(val_loss):
             break
