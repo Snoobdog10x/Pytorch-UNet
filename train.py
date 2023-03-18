@@ -159,14 +159,14 @@ def train_model(
             state_dict = model.state_dict()
             state_dict['mask_values'] = dataset.mask_values
             if best_checker.is_best(val_score, epoch):
-                best = dir_checkpoint.joinpath(f"best")
-                Path(best).mkdir(parents=True, exist_ok=True)
+                best = Path(dir_checkpoint).joinpath(f"best")
+                best.mkdir(parents=True, exist_ok=True)
                 torch.save(state_dict,
                            best.joinpath('best.pth'))
-            latest = dir_checkpoint.joinpath(f"latest")
-            Path(latest).mkdir(parents=True, exist_ok=True)
+            latest = Path(dir_checkpoint).joinpath(f"latest")
+            latest.mkdir(parents=True, exist_ok=True)
             torch.save(state_dict,
-                       best.joinpath('latest.pth'))
+                       latest.joinpath('latest.pth'))
             logging.info(f'Checkpoint {epoch} saved!')
         if early_stopper.early_stop(val_loss):
             break
@@ -174,7 +174,7 @@ def train_model(
 
 def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks')
-    parser.add_argument('--data_path', '-dp', type=str, default="data", help='root data path')
+    parser.add_argument('--data_path', '-dp', type=str, default="data/data", help='root data path')
     parser.add_argument('--check_point_path', '-cpp', type=str, default="checkpoints", help='checkpoint model path')
     parser.add_argument('--wandb_path', '-wp', type=str, default="wandb", help='checkpoint model path')
     parser.add_argument('--epochs', '-e', metavar='E', type=int, default=5, help='Number of epochs')

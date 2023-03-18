@@ -73,7 +73,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
     parser.add_argument('--model', '-m', default='trained_models/model_1/best.pth', metavar='FILE',
                         help='Specify the file in which the model is stored')
-    parser.add_argument('--input', '-i', type=str, default="augmented_data/test", help='root data path')
+    parser.add_argument('--input', '-i', type=str, default="data/test", help='root data path')
     parser.add_argument('--output', '-o', type=str, default="test_evaluate", help='root data path')
     parser.add_argument('--viz', '-v', action='store_true',
                         help='Visualize the images as they are processed')
