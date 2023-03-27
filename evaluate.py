@@ -14,7 +14,7 @@ def evaluate(net, dataloader, device, amp, fig_path: str):
     valid_loss = 0
     criterion = nn.CrossEntropyLoss() if net.n_classes > 1 else nn.BCEWithLogitsLoss()
     # iterate over the validation set
-    with torch.autocast(device.type if device.type != 'mps' else 'cpu', enabled=amp):
+    with torch.autocast(device.type if device.type != 'mps' or device.type != 'xla' else 'cpu', enabled=amp):
         for batch in tqdm(dataloader, total=num_val_batches, desc='Validation round', unit='batch', leave=False):
             image, mask_true = batch['image'], batch['mask']
 
