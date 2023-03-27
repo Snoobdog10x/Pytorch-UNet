@@ -104,7 +104,8 @@ def train_model(
                 images = images.to(device=device, dtype=torch.float32, memory_format=torch.channels_last)
                 true_masks = true_masks.to(device=device, dtype=torch.long)
 
-                with torch.autocast(device.type if device.type != 'mps' else 'cpu', enabled=amp):
+                with torch.autocast(device.type if device.type != 'mps' or device.type != 'xla' else 'cpu',
+                                    enabled=amp):
                     masks_pred = model(images)
                     if model.n_classes == 1:
                         loss = criterion(masks_pred.squeeze(1), true_masks.float())
