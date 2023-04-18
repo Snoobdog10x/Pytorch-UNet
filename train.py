@@ -218,7 +218,7 @@ if __name__ == '__main__':
     model = model.to(memory_format=torch.channels_last)
 
     logging.info(f'Network:\n'
-                 f'\tmodel size {args.args.model_type}\n'
+                 f'\tmodel size {args.model_type}\n'
                  f'\t{model.n_channels} input channels\n'
                  f'\t{model.n_classes} output channels (classes)\n'
                  f'\t{"Bilinear" if model.bilinear else "Transposed conv"} upscaling')
