@@ -13,6 +13,7 @@ import wandb
 from evaluate import evaluate
 from unet import UNet
 from unet import UNetLite
+from unet import UNetSmall
 from utils.best_checker import BestChecker
 from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
@@ -187,7 +188,8 @@ def get_args():
     parser.add_argument('--validation', '-v', dest='val', type=float, default=10.0,
                         help='Percent of the data that is used as validation (0-100)')
     parser.add_argument('--amp', action='store_true', default=False, help='Use mixed precision')
-    parser.add_argument('--is_lite', action='store_true', default=False, help='Use lite model')
+    parser.add_argument('--model_type', '-mt', type=str, default="SMALL",
+                        help='choose model type: NORMAL or LITE or SMALL')
     parser.add_argument('--save_epoch_plot', '-sep', type=bool, default=True,
                         help='Save plot image after epoch')
     parser.add_argument('--bilinear', action='store_true', default=False, help='Use bilinear upsampling')
@@ -206,10 +208,13 @@ if __name__ == '__main__':
     # Change here to adapt to your data
     # n_channels=3 for RGB images
     # n_classes is the number of probabilities you want to get per pixel
-    if args.is_lite:
+    if args.model_type == "NORMAL":
+        model = UNet(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
+    elif args.model_type == "LITE":
         model = UNetLite(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
     else:
-        model = UNet(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
+        model = UNetSmall(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
+
     model = model.to(memory_format=torch.channels_last)
 
     logging.info(f'Network:\n'

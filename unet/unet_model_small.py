@@ -3,9 +3,9 @@
 from .unet_parts import *
 
 
-class UNetLite(nn.Module):
+class UNetSmall(nn.Module):
     def __init__(self, n_channels, n_classes, bilinear=False):
-        super(UNetLite, self).__init__()
+        super(UNetSmall, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.bilinear = bilinear
