@@ -175,7 +175,7 @@ def train_model(
 
 def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks')
-    parser.add_argument('--data_path', '-dp', type=str, default="data/data", help='root data path')
+    parser.add_argument('--data_path', '-dp', type=str, default="data/split_data", help='root data path')
     parser.add_argument('--check_point_path', '-cpp', type=str, default="checkpoints", help='checkpoint model path')
     parser.add_argument('--wandb_path', '-wp', type=str, default="wandb", help='checkpoint model path')
     parser.add_argument('--epochs', '-e', metavar='E', type=int, default=5, help='Number of epochs')
