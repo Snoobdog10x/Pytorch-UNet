@@ -109,10 +109,9 @@ def train_model(
                 true_masks = true_masks.to(device=device, dtype=torch.long)
                 if device.type == 'mps':
                     amp_device = device.type
-                elif device.type == "XLA:GPU":
-                    amp_device = xm.xla_device(devkind="CPU").type
                 else:
                     amp_device = "cpu"
+
                 with torch.autocast(amp_device, enabled=amp):
                     masks_pred = model(images)
                     if model.n_classes == 1:

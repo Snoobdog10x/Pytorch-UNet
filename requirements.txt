@@ -3,6 +3,6 @@ numpy==1.23.5
 Pillow==9.3.0
 tqdm==4.64.1
 wandb==0.13.5
-torch~=1.13.1
+torch~=2.0.0
 pandas~=1.5.3
-torchvision~=0.14.1
+torchvision~=0.15.1
