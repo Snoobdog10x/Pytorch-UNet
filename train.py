@@ -107,9 +107,14 @@ def train_model(
 
                 images = images.to(device=device, dtype=torch.float32, memory_format=torch.channels_last)
                 true_masks = true_masks.to(device=device, dtype=torch.long)
+                if device.type != 'mps':
+                    amp_device = device.type
+                elif device.type != 'xla':
+                    amp_device = xm.xla_device(xm.xla_device("CPU")).type
+                else:
+                    amp_device = "cpu"
 
-                with torch.autocast(device.type if device.type != 'mps' and device.type != 'xla' else 'cpu',
-                                    enabled=amp):
+                with torch.autocast(amp_device, enabled=amp):
                     masks_pred = model(images)
                     if model.n_classes == 1:
                         loss = criterion(masks_pred.squeeze(1), true_masks.float())
@@ -212,7 +217,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     if args.xla:
         try:
-            device = xm.xla_device()
+            device = xm.xla_device(xm.xla_device("TPU"))
         except NameError:
             print(NameError)
     else:
