@@ -8,7 +8,12 @@ from pathlib import Path
 from torch import optim
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
-
+try:
+    import torch
+    import torch_xla
+    import torch_xla.core.xla_model as xm
+except NameError:
+    print(NameError)
 import wandb
 from evaluate import evaluate
 from unet import UNet
@@ -187,11 +192,12 @@ def get_args():
     parser.add_argument('--scale', '-s', type=float, default=0.5, help='Downscaling factor of the images')
     parser.add_argument('--validation', '-v', dest='val', type=float, default=10.0,
                         help='Percent of the data that is used as validation (0-100)')
-    parser.add_argument('--amp', action='store_true', default=False, help='Use mixed precision')
+    parser.add_argument('--amp', action='store_true', default=True, help='Use mixed precision')
     parser.add_argument('--model_type', '-mt', type=str, default="SMALL",
                         help='choose model type: NORMAL or LITE or SMALL')
     parser.add_argument('--save_epoch_plot', '-sep', type=bool, default=True,
                         help='Save plot image after epoch')
+    parser.add_argument('--xla', action='store_true', default=True, help='Use mixed precision')
     parser.add_argument('--bilinear', action='store_true', default=False, help='Use bilinear upsampling')
     parser.add_argument('--classes', '-c', type=int, default=2, help='Number of classes')
 
@@ -202,7 +208,13 @@ if __name__ == '__main__':
     args = get_args()
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if args.xla:
+        try:
+            device = xm.xla_device()
+        except NameError:
+            print(NameError)
+    else:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
 
     # Change here to adapt to your data
