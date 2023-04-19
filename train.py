@@ -109,6 +109,8 @@ def train_model(
                 true_masks = true_masks.to(device=device, dtype=torch.long)
                 if device.type == 'mps':
                     amp_device = device.type
+                elif device.type == "XLA:GPU":
+                    amp_device = xm.xla_device(devkind="CPU").type
                 else:
                     amp_device = "cpu"
                 with torch.autocast(amp_device, enabled=amp):
@@ -214,7 +216,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     if args.xla:
         try:
-            device = xm.xla_device(xm.xla_device("TPU"))
+            device = xm.xla_device(devkind="TPU")
         except NameError:
             print(NameError)
     else:
