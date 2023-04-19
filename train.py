@@ -9,12 +9,12 @@ from torch import optim
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
-try:
-    import torch
-    import torch_xla
-    import torch_xla.core.xla_model as xm
-except NameError:
-    print(NameError)
+# try:
+#     import torch
+#     import torch_xla
+#     import torch_xla.core.xla_model as xm
+# except NameError:
+#     print(NameError)
 import wandb
 from evaluate import evaluate
 from unet import UNet
@@ -202,7 +202,7 @@ def get_args():
                         help='choose model type: NORMAL or LITE or SMALL')
     parser.add_argument('--save_epoch_plot', '-sep', type=bool, default=True,
                         help='Save plot image after epoch')
-    parser.add_argument('--xla', action='store_true', default=True, help='Use mixed precision')
+    parser.add_argument('--xla', action='store_true', default=False, help='Use mixed precision')
     parser.add_argument('--bilinear', action='store_true', default=False, help='Use bilinear upsampling')
     parser.add_argument('--classes', '-c', type=int, default=2, help='Number of classes')
 
@@ -214,10 +214,11 @@ if __name__ == '__main__':
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     if args.xla:
-        try:
-            device = xm.xla_device(devkind="TPU")
-        except NameError:
-            print(NameError)
+        # try:
+        #     device = xm.xla_device(devkind="TPU")
+        # except NameError:
+        #     print(NameError)
+        pass
     else:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
