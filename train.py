@@ -9,13 +9,6 @@ from torch import optim
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
-# try:
-#     import torch
-#     import torch_xla
-#     import torch_xla.core.xla_model as xm
-# except NameError:
-#     print(NameError)
-import wandb
 from evaluate import evaluate
 from unet import UNet
 from unet import UNetLite
@@ -45,7 +38,6 @@ def train_model(
         momentum: float = 0.999,
         gradient_clipping: float = 1.0,
         save_epoch_plot: bool = True,
-        wandb_path: str = "./wandb"
 ):
     # 1. Create dataset
     try:
@@ -62,19 +54,12 @@ def train_model(
     loader_args = dict(batch_size=batch_size, num_workers=os.cpu_count(), pin_memory=True)
     train_loader = DataLoader(train_set, shuffle=True, **loader_args)
     val_loader = DataLoader(val_set, shuffle=False, drop_last=True, **loader_args)
-    Path(wandb_path).mkdir(parents=True, exist_ok=True)
     # (Initialize logging)
-    experiment = wandb.init(project='U-Net', resume='allow', anonymous='must', dir=wandb_path)
-    experiment.config.update(
-        dict(epochs=epochs, batch_size=batch_size, learning_rate=learning_rate,
-             val_percent=val_percent, save_checkpoint=save_checkpoint, img_scale=img_scale, amp=amp)
-    )
 
     logging.info(f'''Starting training:
         Epochs:          {epochs}
         Data path:       {root_data_path}
         Checkpoint path: {dir_checkpoint}
-        Wandb path:      {wandb_path}
         Batch size:      {batch_size}
         Learning rate:   {learning_rate}
         Training size:   {n_train}
@@ -135,13 +120,6 @@ def train_model(
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
 
         logging.info('Validation')
-        histograms = {}
-        for tag, value in model.named_parameters():
-            tag = tag.replace('/', '.')
-            if not (torch.isinf(value) | torch.isnan(value)).any():
-                histograms['Weights/' + tag] = wandb.Histogram(value.data.cpu())
-            if not (torch.isinf(value.grad) | torch.isnan(value.grad)).any():
-                histograms['Gradients/' + tag] = wandb.Histogram(value.grad.data.cpu())
         fig_path = ""
         epoch_path = dir_checkpoint.joinpath("validation_image")
         if save_epoch_plot:
@@ -155,18 +133,6 @@ def train_model(
         HEADER = ["Epoch", "Train_loss", "Validation_loss", "Validation_dice", "Learning_rate"]
         running_path = save_running_csv(dir_checkpoint, HEADER, values, epoch == 1)
         plot_running(running_path)
-        try:
-            experiment.log({
-                'learning rate': optimizer.param_groups[0]['lr'],
-                'train loss': train_loss,
-                'validation Dice': val_score,
-                'validation Loss': val_loss,
-                'epoch': epoch,
-                **histograms
-            })
-        except:
-            pass
-
         if save_checkpoint:
             state_dict = model.state_dict()
             state_dict['mask_values'] = dataset.mask_values
@@ -188,7 +154,6 @@ def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks')
     parser.add_argument('--data_path', '-dp', type=str, default="data/split_data", help='root data path')
     parser.add_argument('--check_point_path', '-cpp', type=str, default="checkpoints", help='checkpoint model path')
-    parser.add_argument('--wandb_path', '-wp', type=str, default="wandb", help='checkpoint model path')
     parser.add_argument('--epochs', '-e', metavar='E', type=int, default=5, help='Number of epochs')
     parser.add_argument('--batch-size', '-b', dest='batch_size', metavar='B', type=int, default=8, help='Batch size')
     parser.add_argument('--learning-rate', '-l', metavar='LR', type=float, default=1e-5,
@@ -213,14 +178,7 @@ if __name__ == '__main__':
     args = get_args()
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-    if args.xla:
-        # try:
-        #     device = xm.xla_device(devkind="TPU")
-        # except NameError:
-        #     print(NameError)
-        pass
-    else:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
 
     # Change here to adapt to your data
@@ -264,7 +222,6 @@ if __name__ == '__main__':
             val_percent=args.val / 100,
             save_epoch_plot=args.save_epoch_plot,
             amp=args.amp,
-            wandb_path=args.wandb_path
         )
     except torch.cuda.OutOfMemoryError:
         logging.error('Detected OutOfMemoryError! '
@@ -282,5 +239,4 @@ if __name__ == '__main__':
             val_percent=args.val / 100,
             save_epoch_plot=args.save_epoch_plot,
             amp=args.amp,
-            wandb_path=args.wandb_path
         )
