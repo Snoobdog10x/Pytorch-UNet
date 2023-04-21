@@ -185,11 +185,11 @@ if __name__ == '__main__':
     # n_channels=3 for RGB images
     # n_classes is the number of probabilities you want to get per pixel
     if args.model_type == "NORMAL":
-        model = UNet(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
+        model = UNet(n_channels=3, n_classes=args.classes, bilinear=args.bilinear)
     elif args.model_type == "LITE":
-        model = UNetLite(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
+        model = UNetLite(n_channels=3, n_classes=args.classes, bilinear=args.bilinear)
     else:
-        model = UNetSmall(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
+        model = UNetSmall(n_channels=3, n_classes=args.classes, bilinear=args.bilinear)
 
     model = model.to(memory_format=torch.channels_last)
 
