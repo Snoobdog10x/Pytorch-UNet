@@ -76,8 +76,9 @@ def train_model(
                               lr=learning_rate, weight_decay=weight_decay, momentum=momentum, foreach=True)
     grad_scaler = torch.cuda.amp.GradScaler(enabled=amp)
     criterion = nn.CrossEntropyLoss() if model.n_classes > 1 else nn.BCEWithLogitsLoss()
-    early_stopper = EarlyStopper(patience=5)
-    best_checker = BestChecker()
+    best = Path(dir_checkpoint).joinpath(f"best")
+    best.mkdir(parents=True, exist_ok=True)
+    early_stopper = EarlyStopper(patience=5, verbose=True, path=best.joinpath('best.pth'), dataset=dataset)
     # 5. Begin training
     for epoch in range(1, epochs + 1):
         model.train()
@@ -136,17 +137,12 @@ def train_model(
         if save_checkpoint:
             state_dict = model.state_dict()
             state_dict['mask_values'] = dataset.mask_values
-            if best_checker.is_best(val_score, epoch):
-                best = Path(dir_checkpoint).joinpath(f"best")
-                best.mkdir(parents=True, exist_ok=True)
-                torch.save(state_dict,
-                           best.joinpath('best.pth'))
             latest = Path(dir_checkpoint).joinpath(f"latest")
             latest.mkdir(parents=True, exist_ok=True)
             torch.save(state_dict,
                        latest.joinpath('latest.pth'))
             logging.info(f'Checkpoint {epoch} saved!')
-        if early_stopper.early_stop(val_loss):
+        if early_stopper(val_loss, model):
             break
 
 
