@@ -76,7 +76,7 @@ def train_model(
                               lr=learning_rate, weight_decay=weight_decay, momentum=momentum, foreach=True)
     grad_scaler = torch.cuda.amp.GradScaler(enabled=amp)
     criterion = nn.CrossEntropyLoss() if model.n_classes > 1 else nn.BCEWithLogitsLoss()
-    early_stopper = EarlyStopper(patience=3, min_delta=5)
+    early_stopper = EarlyStopper(patience=5)
     best_checker = BestChecker()
     # 5. Begin training
     for epoch in range(1, epochs + 1):
