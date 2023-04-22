@@ -76,7 +76,7 @@ def train_model(
                               lr=learning_rate, weight_decay=weight_decay, momentum=momentum, foreach=True)
     grad_scaler = torch.cuda.amp.GradScaler(enabled=amp)
     criterion = nn.CrossEntropyLoss() if model.n_classes > 1 else nn.BCEWithLogitsLoss()
-    early_stopper = EarlyStopper(patience=3, min_delta=10)
+    early_stopper = EarlyStopper(patience=3, min_delta=5)
     best_checker = BestChecker()
     # 5. Begin training
     for epoch in range(1, epochs + 1):
@@ -187,9 +187,9 @@ if __name__ == '__main__':
     if args.model_type == "NORMAL":
         model = UNet(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
     elif args.model_type == "LITE":
-        model = UNetLite(n_channels=3, n_classes=args.classes, bilinear=args.bilinear)
+        model = UNetLite(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
     else:
-        model = UNetSmall(n_channels=3, n_classes=args.classes, bilinear=args.bilinear)
+        model = UNetSmall(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
 
     model = model.to(memory_format=torch.channels_last)
 
