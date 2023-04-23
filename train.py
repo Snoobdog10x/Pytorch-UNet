@@ -142,7 +142,8 @@ def train_model(
             torch.save(state_dict,
                        latest.joinpath('latest.pth'))
             logging.info(f'Checkpoint {epoch} saved!')
-        if early_stopper(val_loss, model):
+        early_stopper(val_loss, model)
+        if early_stopper.early_stop:
             break
 
 
