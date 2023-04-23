@@ -28,6 +28,7 @@ def train_model(
         model,
         device,
         epochs: int = 5,
+        early_stop_patient=10,
         batch_size: int = 1,
         learning_rate: float = 1e-5,
         val_percent: float = 0.1,
@@ -78,7 +79,8 @@ def train_model(
     criterion = nn.CrossEntropyLoss() if model.n_classes > 1 else nn.BCEWithLogitsLoss()
     best = Path(dir_checkpoint).joinpath(f"best")
     best.mkdir(parents=True, exist_ok=True)
-    early_stopper = EarlyStopper(patience=5, verbose=True, path=best.joinpath('best.pth'), dataset=dataset)
+    early_stopper = EarlyStopper(patience=early_stop_patient, verbose=True, path=best.joinpath('best.pth'),
+                                 dataset=dataset)
     # 5. Begin training
     for epoch in range(1, epochs + 1):
         model.train()
@@ -167,6 +169,7 @@ def get_args():
     parser.add_argument('--xla', action='store_true', default=False, help='Use mixed precision')
     parser.add_argument('--bilinear', action='store_true', default=False, help='Use bilinear upsampling')
     parser.add_argument('--classes', '-c', type=int, default=2, help='Number of classes')
+    parser.add_argument('--early_stop_patient', '-esp', type=int, default=10, help='Early stop patient')
 
     return parser.parse_args()
 
@@ -212,6 +215,7 @@ if __name__ == '__main__':
         train_model(
             model=model,
             epochs=args.epochs,
+            early_stop_patient=args.early_stop_patient,
             batch_size=args.batch_size,
             learning_rate=args.lr,
             device=device,
@@ -229,6 +233,7 @@ if __name__ == '__main__':
         train_model(
             model=model,
             epochs=args.epochs,
+            early_stop_patient=args.early_stop_patient,
             batch_size=args.batch_size,
             learning_rate=args.lr,
             device=device,
