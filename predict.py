@@ -65,6 +65,7 @@ def evaluate_test(net, device, test_dir, output_viz):
             total_dict_score += dice_score.item()
             batch_dice_scores.append(dice_score.item())
             logging.info(f'\nBatch {index} Dice score: {dice_score.item()}')
+            os.makedirs(output_viz, exist_ok=True)
             save_running_csv(output_viz, ["Batches", "Dice_score"], [index, dice_score.item()], index == 1)
         logging.info(f'\nAvg Dice score: {total_dict_score / max(num_test_batches, 1)}')
 
