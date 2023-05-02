@@ -15,7 +15,7 @@ from unet import UNetLite
 from unet import UNetSmall
 from utils.best_checker import BestChecker
 from utils.data_loading import BasicDataset, CarvanaDataset
-from utils.dice_score import dice_loss
+from utils.dice_score import dice_loss, multiclass_dice_coeff, dice_coeff
 from utils.early_stopper import EarlyStopper
 from utils.utils import save_running_csv, plot_running
 
@@ -85,6 +85,8 @@ def train_model(
     for epoch in range(1, epochs + 1):
         model.train()
         epoch_loss = 0
+        train_dice = 0
+        num_train_batches = len(train_loader)
         with tqdm(total=n_train, desc=f'Epoch {epoch}/{epochs}', unit='img') as pbar:
             for batch in train_loader:
                 images, true_masks = batch['image'], batch['mask']
@@ -105,6 +107,8 @@ def train_model(
                     if model.n_classes == 1:
                         loss = criterion(masks_pred.squeeze(1), true_masks.float())
                         loss += dice_loss(F.sigmoid(masks_pred.squeeze(1)), true_masks.float(), multiclass=False)
+                        train_dice += dice_coeff((F.sigmoid(masks_pred) > 0.5).float(), true_masks,
+                                                 reduce_batch_first=False)
                     else:
                         loss = criterion(masks_pred, true_masks)
                         loss += dice_loss(
@@ -112,6 +116,10 @@ def train_model(
                             F.one_hot(true_masks, model.n_classes).permute(0, 3, 1, 2).float(),
                             multiclass=True
                         )
+                        train_dice += multiclass_dice_coeff(
+                            F.one_hot(true_masks, model.n_classes).permute(0, 3, 1, 2).float()[:, 1:],
+                            F.one_hot(masks_pred.argmax(dim=1), model.n_classes).permute(0, 3, 1, 2).float()[:, 1:],
+                            reduce_batch_first=False)
 
                 optimizer.zero_grad(set_to_none=True)
                 grad_scaler.scale(loss).backward()
@@ -121,7 +129,7 @@ def train_model(
                 pbar.update(images.shape[0])
                 epoch_loss += loss.item()
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
-
+        epoch_dice = train_dice / max(num_train_batches, 1)
         logging.info('Validation')
         fig_path = ""
         epoch_path = dir_checkpoint.joinpath("validation_image")
@@ -132,8 +140,8 @@ def train_model(
 
         logging.info('Validation Dice score: {}'.format(val_score))
         train_loss = epoch_loss / max(len(train_loader), 1)
-        values = [epoch, train_loss, val_loss, val_score.item(), learning_rate]
-        HEADER = ["Epoch", "Train_loss", "Validation_loss", "Validation_dice", "Learning_rate"]
+        values = [epoch, train_loss, val_loss, val_score.item(), epoch_dice.item(), learning_rate]
+        HEADER = ["Epoch", "Train_loss", "Validation_loss", "Train_dice", "Validation_dice", "Learning_rate"]
         running_path = save_running_csv(dir_checkpoint, HEADER, values, epoch == 1)
         plot_running(running_path)
         if save_checkpoint:
