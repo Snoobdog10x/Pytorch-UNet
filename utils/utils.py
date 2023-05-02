@@ -11,11 +11,12 @@ def plot_running(path: str):
     epochs = data['Epoch'].tolist()
     np_epochs = np.arange(1, len(epochs) + 1, 1)
     path = path[:-4]
-    plot_and_save_running(path, "train vs valid loss", np_epochs,
-                          [data["Train_loss"].tolist(), data["Validation_loss"].tolist()], ["train", "valid"])
-    plot_and_save_running(path, "train vs valid accuracy", np_epochs,
-                          [data["Train_dice"].tolist(), data["Validation_dice"].tolist()]
-                          , ["train, valid"])
+    plot_and_save_running(path, "train vs valid loss", np_epoch=np_epochs,
+                          data=[data["Train_loss"].tolist(), data["Validation_loss"].tolist()],
+                          line_label=["train", "valid"])
+    plot_and_save_running(path, "train vs valid accuracy", np_epoch=np_epochs,
+                          data=[data["Train_dice"].tolist(), data["Validation_dice"].tolist()],
+                          line_label=["train", "valid"])
     plot_and_save_running(path, "Learning rate", np_epochs,
                           [data["Learning_rate"].tolist()])
 
