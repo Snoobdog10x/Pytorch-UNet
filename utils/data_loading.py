@@ -13,14 +13,16 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 
 
-def load_image(filename):
+def load_image(filename, n_channel=1):
     ext = splitext(filename)[1]
     if ext == '.npy':
         return Image.fromarray(np.load(filename))
     elif ext in ['.pt', '.pth']:
         return Image.fromarray(torch.load(filename).numpy())
     else:
-        return Image.open(filename).convert('L')
+        if n_channel == 1:
+            return Image.open(filename).convert('L')
+        return Image.open(filename)
 
 
 def unique_mask_values(idx, mask_dir, mask_suffix):
@@ -36,14 +38,15 @@ def unique_mask_values(idx, mask_dir, mask_suffix):
 
 
 class BasicDataset(Dataset):
-    def __init__(self, images_dir: str, mask_dir: str, scale: float = 1.0, mask_suffix: str = ''):
+    def __init__(self, images_dir: str, mask_dir: str, scale: float = 1.0, mask_suffix: str = '', n_channel=1):
         self.images_dir = Path(images_dir)
         self.mask_dir = Path(mask_dir)
         assert 0 < scale <= 1, 'Scale must be between 0 and 1'
         self.scale = scale
         self.mask_suffix = mask_suffix
-
-        self.ids = [splitext(file)[0] for file in listdir(images_dir) if isfile(join(images_dir, file)) and not file.startswith('.')]
+        self.n_channel = n_channel
+        self.ids = [splitext(file)[0] for file in listdir(images_dir) if
+                    isfile(join(images_dir, file)) and not file.startswith('.')]
         if not self.ids:
             raise RuntimeError(f'No input file found in {images_dir}, make sure you put your images there')
 
@@ -98,7 +101,7 @@ class BasicDataset(Dataset):
         assert len(img_file) == 1, f'Either no image or multiple images found for the ID {name}: {img_file}'
         assert len(mask_file) == 1, f'Either no mask or multiple masks found for the ID {name}: {mask_file}'
         mask = load_image(mask_file[0])
-        img = load_image(img_file[0])
+        img = load_image(img_file[0], n_channel=self.n_channel)
 
         assert img.size == mask.size, \
             f'Image and mask {name} should be the same size, but are {img.size} and {mask.size}'
@@ -113,5 +116,5 @@ class BasicDataset(Dataset):
 
 
 class CarvanaDataset(BasicDataset):
-    def __init__(self, images_dir, mask_dir, scale=1):
-        super().__init__(images_dir, mask_dir, scale, mask_suffix='_mask')
+    def __init__(self, images_dir, mask_dir, scale=1, n_channel=1):
+        super().__init__(images_dir, mask_dir, scale, mask_suffix='_mask', n_channel=n_channel)

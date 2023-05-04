@@ -39,12 +39,13 @@ def train_model(
         momentum: float = 0.999,
         gradient_clipping: float = 1.0,
         save_epoch_plot: bool = True,
+        n_channel=1,
 ):
     # 1. Create dataset
     try:
-        dataset = CarvanaDataset(dir_img, dir_mask, img_scale)
+        dataset = CarvanaDataset(dir_img, dir_mask, img_scale, n_channel=n_channel)
     except (AssertionError, RuntimeError, IndexError):
-        dataset = BasicDataset(dir_img, dir_mask, img_scale)
+        dataset = BasicDataset(dir_img, dir_mask, img_scale, n_channel=n_channel)
 
     # 2. Split into train / validation partitions
     n_val = int(len(dataset) * val_percent)
@@ -70,6 +71,7 @@ def train_model(
         Images scaling:  {img_scale}
         Mixed Precision: {amp}
         Save epoch plot: {save_epoch_plot}
+        Image channel: {n_channel}
     ''')
 
     # 4. Set up the optimizer, the loss, the learning rate scheduler and the loss scaling for AMP
@@ -176,8 +178,10 @@ def get_args():
                         help='Save plot image after epoch')
     parser.add_argument('--xla', action='store_true', default=False, help='Use mixed precision')
     parser.add_argument('--bilinear', action='store_true', default=False, help='Use bilinear upsampling')
-    parser.add_argument('--classes', '-c', type=int, default=2, help='Number of classes')
     parser.add_argument('--early_stop_patient', '-esp', type=int, default=10, help='Early stop patient')
+    parser.add_argument('--classes', '-c', type=int, default=2, help='Number of classes')
+    parser.add_argument('--channel', '-cn', type=int, default=3,
+                        help='Number of channel image 1 for gray, and 3 for color')
 
     return parser.parse_args()
 
@@ -188,16 +192,16 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
-
+    n_channel = args.channel
     # Change here to adapt to your data
     # n_channels=3 for RGB images
     # n_classes is the number of probabilities you want to get per pixel
     if args.model_type == "NORMAL":
-        model = UNet(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
+        model = UNet(n_channels=n_channel, n_classes=args.classes, bilinear=args.bilinear)
     elif args.model_type == "LITE":
-        model = UNetLite(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
+        model = UNetLite(n_channels=n_channel, n_classes=args.classes, bilinear=args.bilinear)
     else:
-        model = UNetSmall(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
+        model = UNetSmall(n_channels=n_channel, n_classes=args.classes, bilinear=args.bilinear)
 
     model = model.to(memory_format=torch.channels_last)
 
@@ -232,6 +236,7 @@ if __name__ == '__main__':
             val_percent=args.val / 100,
             save_epoch_plot=args.save_epoch_plot,
             amp=args.amp,
+            n_channel=n_channel,
         )
     except torch.cuda.OutOfMemoryError:
         logging.error('Detected OutOfMemoryError! '
@@ -250,4 +255,5 @@ if __name__ == '__main__':
             val_percent=args.val / 100,
             save_epoch_plot=args.save_epoch_plot,
             amp=args.amp,
+            n_channel=n_channel,
         )
