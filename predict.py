@@ -32,12 +32,12 @@ def predict_img(net,
     return mask[0].long().squeeze().numpy()
 
 
-def evaluate_test(net, device, test_dir, output_viz):
+def evaluate_test(net, device, test_dir, output_viz, n_channel=1):
     net.eval()
     imgs_dir = os.path.join(test_dir, "imgs")
     mask_dir = os.path.join(test_dir, "masks")
     try:
-        dataset = CarvanaDataset(imgs_dir, mask_dir, 1)
+        dataset = CarvanaDataset(imgs_dir, mask_dir, 1, n_channel=n_channel)
     except (AssertionError, RuntimeError, IndexError):
         dataset = BasicDataset(imgs_dir, mask_dir, 1)
     loader_args = dict(batch_size=16, num_workers=os.cpu_count(), pin_memory=True)
@@ -86,6 +86,7 @@ def get_args():
                         help='Scale factor for the input images')
     parser.add_argument('--bilinear', action='store_true', default=False, help='Use bilinear upsampling')
     parser.add_argument('--classes', '-c', type=int, default=2, help='Number of classes')
+    parser.add_argument('--channels', '-cn', type=int, default=1, help='Number of classes')
     parser.add_argument('--model_type', '-mt', type=str, default="NORMAL", help='NORMAL, LITE')
 
     return parser.parse_args()
@@ -122,10 +123,11 @@ if __name__ == '__main__':
     in_files = args.input
     # out_files = get_output_filenames(args)
     out_files = args.output
+    n_channels = args.channels
     if args.model_type == "LITE":
-        net = UNetLite(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
+        net = UNetLite(n_channels=n_channels, n_classes=args.classes, bilinear=args.bilinear)
     else:
-        net = UNet(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
+        net = UNet(n_channels=n_channels, n_classes=args.classes, bilinear=args.bilinear)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
@@ -136,7 +138,7 @@ if __name__ == '__main__':
     net.load_state_dict(state_dict)
 
     logging.info('Model loaded!')
-    evaluate_test(net, device, in_files, out_files)
+    evaluate_test(net, device, in_files, out_files, n_channel=n_channels)
     # for i, filename in enumerate(in_files):
     #     logging.info(f'Predicting image {filename} ...')
     #     img = Image.open(filename)
