@@ -40,7 +40,7 @@ def evaluate_test(net, device, test_dir, output_viz, n_channel=1):
         dataset = CarvanaDataset(imgs_dir, mask_dir, 1, n_channel=n_channel)
     except (AssertionError, RuntimeError, IndexError):
         dataset = BasicDataset(imgs_dir, mask_dir, 1)
-    loader_args = dict(batch_size=16, num_workers=os.cpu_count(), pin_memory=True)
+    loader_args = dict(batch_size=8, num_workers=os.cpu_count(), pin_memory=True)
     test_loader = DataLoader(dataset, shuffle=False, **loader_args)
     num_test_batches = len(test_loader)
     batch_dice_scores = []
